@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>向き｜Daily Inbox</title>
+  <title>向き｜Step Loop</title>
   <style>
     :root {
       --bg:#f7f4ee; --card:#fffdf8; --ink:#24221f; --muted:#746d62;
@@ -23,7 +23,6 @@
     button.secondary{background:#e7dfd1;color:var(--ink)}
     button.danger{background:var(--danger)}
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .pill{display:inline-block;background:var(--accent2);border:1px solid #d8dfd0;border-radius:999px;padding:4px 9px;margin:3px;font-size:13px}
     .item{border-top:1px solid var(--line);padding:12px 0}
     .item:first-child{border-top:0}
     .item-time{font-size:12px;color:var(--muted)}
@@ -36,13 +35,16 @@
     .status{font-weight:700;color:var(--accent);margin-top:8px}
     details summary{cursor:pointer;font-weight:700}
     .count{font-weight:800}
+    .stepLog{background:#faf7ef;border:1px solid var(--line);border-radius:14px;padding:10px;margin:8px 0}
+    .done{color:var(--accent);font-weight:700}
+    .notdone{color:var(--danger);font-weight:700}
   </style>
 </head>
 <body>
 <main class="wrap">
   <header>
     <h1>向き</h1>
-    <p class="lead">思いついた時に入れる。1日の終わりに整理する。</p>
+    <p class="lead">思いついた時に入れる。まとめて、一歩ずつ進める。</p>
   </header>
 
   <section class="card">
@@ -62,40 +64,48 @@
   </section>
 
   <section id="summaryCard" class="card hidden">
-    <h2>今日のまとめ</h2>
+    <h2>今日の流れ</h2>
 
-    <h3>次の一歩</h3>
+    <h3>今の一歩</h3>
     <div id="nextStep" class="big"></div>
     <p id="reason" class="muted"></p>
-
-    <div class="grid">
-      <div>
-        <h3>やるべきこと</h3>
-        <ul id="mustList"></ul>
-      </div>
-      <div>
-        <h3>やりたいこと</h3>
-        <ul id="wantList"></ul>
-      </div>
-      <div>
-        <h3>気になっていること</h3>
-        <ul id="concernList"></ul>
-      </div>
-      <div>
-        <h3>状態</h3>
-        <ul id="stateList"></ul>
-      </div>
-    </div>
-
-    <h3>残してあるもの</h3>
-    <ul id="keptList"></ul>
 
     <div class="row">
       <button id="doneBtn">一歩やった</button>
       <button id="notDoneBtn" class="secondary">できなかった</button>
-      <button id="copyBtn" class="secondary">Obsidian用にコピー</button>
+      <button id="skipBtn" class="secondary">別の一歩を出す</button>
     </div>
     <div id="status" class="status"></div>
+
+    <h3>一歩の記録</h3>
+    <div id="stepLogList"></div>
+
+    <details open>
+      <summary>今日の整理を見る</summary>
+      <div class="grid">
+        <div>
+          <h3>やるべきこと</h3>
+          <ul id="mustList"></ul>
+        </div>
+        <div>
+          <h3>やりたいこと</h3>
+          <ul id="wantList"></ul>
+        </div>
+        <div>
+          <h3>気になっていること</h3>
+          <ul id="concernList"></ul>
+        </div>
+        <div>
+          <h3>状態</h3>
+          <ul id="stateList"></ul>
+        </div>
+      </div>
+
+      <h3>残してあるもの</h3>
+      <ul id="keptList"></ul>
+    </details>
+
+    <button id="copyBtn" class="secondary">Obsidian用にコピー</button>
   </section>
 
   <section class="card">
@@ -107,8 +117,9 @@
 </main>
 
 <script>
-const todayKey = () => "muki_inbox_" + new Date().toISOString().slice(0,10);
-const summaryKey = () => "muki_summary_" + new Date().toISOString().slice(0,10);
+const today = () => new Date().toISOString().slice(0,10);
+const todayKey = () => "muki_inbox_" + today();
+const summaryKey = () => "muki_summary_" + today();
 let currentSummary = null;
 
 const $ = id => document.getElementById(id);
@@ -122,11 +133,14 @@ function getInbox(){
 function saveInbox(items){
   localStorage.setItem(todayKey(), JSON.stringify(items));
 }
+function saveSummary(){
+  if(currentSummary) localStorage.setItem(summaryKey(), JSON.stringify(currentSummary));
+}
 function addItem(text){
   const t = text.trim();
   if(!t){ alert("追加する内容を書いてください。"); return; }
   const items = getInbox();
-  items.push({id:Date.now(), time:nowText(), text:t});
+  items.push({id:Date.now()+Math.random(), time:nowText(), text:t});
   saveInbox(items);
   $("quickInput").value = "";
   renderInbox();
@@ -167,13 +181,41 @@ function li(id, arr){
   if(!arr.length){ const x=document.createElement("li"); x.textContent="なし"; el.appendChild(x); return; }
   arr.forEach(v=>{const x=document.createElement("li"); x.textContent=v; el.appendChild(x)})
 }
-function chooseFocus(all, must, states){
+function classify(all){
+  const stateWords=["胸","喉","頭","肩","腹","重い","痛い","焦","不安","眠","疲","怖","モヤ","しんど"];
+  const mustWords=["洗濯","仕事","投信","支払い","振込","予約","片付け","ゴミ","掃除","手続き"];
+  const wantWords=["やりたい","作りたい","読みたい","副業","イネイト","自覚","アプリ","読書","学び"];
+  const concernWords=["気になる","不安","焦","進ま","どうしよう","お金","部屋","副業","投信"];
+
+  return {
+    must: unique(all.filter(x=>includesAny(x,mustWords))),
+    want: unique(all.filter(x=>includesAny(x,wantWords))),
+    concern: unique(all.filter(x=>includesAny(x,concernWords))),
+    states: unique(all.filter(x=>includesAny(x,stateWords)))
+  };
+}
+function chooseStepCandidate(summary){
+  const all = summary.all || [];
+  const completedFocuses = (summary.steps || []).filter(s=>s.status==="一歩やった").map(s=>s.focus);
+  const skippedFocuses = (summary.steps || []).filter(s=>s.status==="別の一歩へ").map(s=>s.focus);
+  const used = new Set([...completedFocuses, ...skippedFocuses]);
+
   const quick=["洗濯","ゴミ","掃除","片付け","返信","仕事","支払い","振込","予約","投信"];
-  const q=all.find(x=>includesAny(x,quick));
-  if(q) return q;
-  if(must.length) return must[0];
-  if(states.length && all.length===states.length) return "休む";
-  return all[0] || "水を飲む";
+  let candidates = all.filter(x=>!used.has(x));
+
+  let focus = candidates.find(x=>includesAny(x,quick));
+  if(!focus) focus = (summary.must||[]).find(x=>!used.has(x));
+  if(!focus) focus = (summary.want||[]).find(x=>!used.has(x));
+  if(!focus) focus = (summary.concern||[]).find(x=>!used.has(x));
+  if(!focus && summary.states && summary.states.length && candidates.length===summary.states.length) focus = "休む";
+  if(!focus) focus = candidates[0];
+
+  if(!focus) {
+    focus = "今日の整理を閉じる";
+    return {focus, next:"今日はここまでにする"};
+  }
+
+  return {focus, next:makeStep(focus)};
 }
 function makeStep(focus){
   if(focus.includes("洗濯")) return "洗濯物を集める";
@@ -181,6 +223,7 @@ function makeStep(focus){
   if(focus.includes("副業")) return "教材ページを開く";
   if(focus.includes("投信")) return "証券サイトを開く";
   if(focus.includes("仕事")) return "最初の作業を1つ書く";
+  if(focus.includes("アプリ")) return "index.htmlを開く";
   if(focus.includes("休")) return "1分だけ目を閉じる";
   return focus + "を5分だけ触る";
 }
@@ -190,33 +233,69 @@ function organize(){
   const all=[];
   inbox.forEach(x=>splitText(x.text).forEach(y=>all.push(y)));
 
-  const stateWords=["胸","喉","頭","肩","腹","重い","痛い","焦","不安","眠","疲","怖","モヤ","しんど"];
-  const mustWords=["洗濯","仕事","投信","支払い","振込","予約","片付け","ゴミ","掃除","手続き"];
-  const wantWords=["やりたい","作りたい","読みたい","副業","イネイト","自覚","アプリ","読書","学び"];
-  const concernWords=["気になる","不安","焦","進ま","どうしよう","お金","部屋","副業","投信"];
-
-  const must=unique(all.filter(x=>includesAny(x,mustWords)));
-  const want=unique(all.filter(x=>includesAny(x,wantWords)));
-  const concern=unique(all.filter(x=>includesAny(x,concernWords)));
-  const states=unique(all.filter(x=>includesAny(x,stateWords)));
-
-  const focus=chooseFocus(all,must,states);
-  const next=makeStep(focus);
-  const kept=all.filter(x=>x!==focus);
+  const c = classify(all);
 
   currentSummary={
     date:new Date().toLocaleString("ja-JP"),
-    inbox, all, must, want, concern, states, focus, next, kept, result:"未記録"
+    inbox, all,
+    must:c.must, want:c.want, concern:c.concern, states:c.states,
+    steps:[]
   };
-  localStorage.setItem(summaryKey(), JSON.stringify(currentSummary));
+
+  setNextStep();
+  saveSummary();
   renderSummary(currentSummary);
+}
+function setNextStep(){
+  if(!currentSummary) return;
+  const cand = chooseStepCandidate(currentSummary);
+  currentSummary.currentFocus = cand.focus;
+  currentSummary.currentNext = cand.next;
+  currentSummary.kept = (currentSummary.all || []).filter(x=>x !== cand.focus);
 }
 function renderSummary(s){
   $("summaryCard").classList.remove("hidden");
-  $("nextStep").textContent=s.next;
-  $("reason").textContent="入力された " + s.all.length + " 件を、漏れなく残しながら一歩に絞りました。";
-  li("mustList",s.must); li("wantList",s.want); li("concernList",s.concern); li("stateList",s.states); li("keptList",s.kept);
+  $("nextStep").textContent=s.currentNext || "";
+  $("reason").textContent="一歩を記録すると、残っているものから次の一歩を出します。";
+  li("mustList",s.must||[]); li("wantList",s.want||[]); li("concernList",s.concern||[]); li("stateList",s.states||[]); li("keptList",s.kept||[]);
+  renderStepLogs();
   $("status").textContent="";
+}
+function renderStepLogs(){
+  const box=$("stepLogList");
+  box.innerHTML="";
+  if(!currentSummary || !currentSummary.steps || !currentSummary.steps.length){
+    box.innerHTML='<p class="muted">まだ記録はありません。</p>';
+    return;
+  }
+  currentSummary.steps.forEach(s=>{
+    const div=document.createElement("div");
+    div.className="stepLog";
+    const cls = s.status==="一歩やった" ? "done" : (s.status==="できなかった" ? "notdone" : "");
+    div.innerHTML = `<div class="item-time">${s.time}</div>
+      <div><strong>${s.next}</strong></div>
+      <div class="${cls}">${s.status}</div>
+      <div class="muted">焦点：${s.focus}</div>`;
+    box.appendChild(div);
+  });
+}
+function recordStep(status){
+  if(!currentSummary) return;
+  currentSummary.steps = currentSummary.steps || [];
+  currentSummary.steps.push({
+    time: nowText(),
+    focus: currentSummary.currentFocus,
+    next: currentSummary.currentNext,
+    status
+  });
+  if(status === "一歩やった" || status === "別の一歩へ"){
+    setNextStep();
+  }
+  saveSummary();
+  renderSummary(currentSummary);
+  $("status").textContent = status === "一歩やった" ? "記録しました。次の一歩を出しました。" :
+    status === "できなかった" ? "記録しました。今の一歩は残しています。" :
+    "別の一歩を出しました。";
 }
 function markdown(){
   const s=currentSummary;
@@ -226,29 +305,26 @@ function markdown(){
 ### 今日たまったもの
 ${s.inbox.map(x=>`- ${x.time} ${x.text}`).join("\n")}
 
-### 次の一歩
-${s.next}
-
-### 今日の焦点
-${s.focus}
-
-### やるべきこと
-${s.must.map(x=>"- "+x).join("\n") || "- なし"}
-
-### やりたいこと
-${s.want.map(x=>"- "+x).join("\n") || "- なし"}
-
-### 気になっていること
-${s.concern.map(x=>"- "+x).join("\n") || "- なし"}
-
-### 状態
-${s.states.map(x=>"- "+x).join("\n") || "- なし"}
-
-### 残してあるもの
-${s.kept.map(x=>"- "+x).join("\n") || "- なし"}
+### 今の一歩
+${s.currentNext || ""}
 
 ### 一歩の記録
-${s.result}
+${(s.steps||[]).map(x=>`- ${x.time} ${x.status}｜${x.next}（焦点：${x.focus}）`).join("\n") || "- なし"}
+
+### やるべきこと
+${(s.must||[]).map(x=>"- "+x).join("\n") || "- なし"}
+
+### やりたいこと
+${(s.want||[]).map(x=>"- "+x).join("\n") || "- なし"}
+
+### 気になっていること
+${(s.concern||[]).map(x=>"- "+x).join("\n") || "- なし"}
+
+### 状態
+${(s.states||[]).map(x=>"- "+x).join("\n") || "- なし"}
+
+### 残してあるもの
+${(s.kept||[]).map(x=>"- "+x).join("\n") || "- なし"}
 `;
 }
 $("addBtn").onclick=()=>addItem($("quickInput").value);
@@ -258,21 +334,16 @@ $("sampleBtn").onclick=()=>{
 $("organizeBtn").onclick=organize;
 $("clearBtn").onclick=()=>{
   if(confirm("今日のInboxを消しますか？")){
-    localStorage.removeItem(todayKey()); renderInbox(); $("summaryCard").classList.add("hidden");
+    localStorage.removeItem(todayKey());
+    localStorage.removeItem(summaryKey());
+    currentSummary=null;
+    renderInbox();
+    $("summaryCard").classList.add("hidden");
   }
 };
-$("doneBtn").onclick=()=>{
-  if(!currentSummary)return;
-  currentSummary.result="一歩やった";
-  localStorage.setItem(summaryKey(),JSON.stringify(currentSummary));
-  $("status").textContent="記録しました：一歩やった";
-};
-$("notDoneBtn").onclick=()=>{
-  if(!currentSummary)return;
-  currentSummary.result="できなかった";
-  localStorage.setItem(summaryKey(),JSON.stringify(currentSummary));
-  $("status").textContent="記録しました：できなかった";
-};
+$("doneBtn").onclick=()=>recordStep("一歩やった");
+$("notDoneBtn").onclick=()=>recordStep("できなかった");
+$("skipBtn").onclick=()=>recordStep("別の一歩へ");
 $("copyBtn").onclick=async()=>{
   const md=markdown();
   try{ await navigator.clipboard.writeText(md); $("status").textContent="Obsidian用Markdownをコピーしました"; }
@@ -287,7 +358,7 @@ function renderArchive(){
       const s=JSON.parse(localStorage.getItem(k));
       const div=document.createElement("div");
       div.className="item";
-      div.innerHTML=`<div class="item-time">${k.replace("muki_summary_","")}</div><div><strong>${s.next||""}</strong></div><div class="muted">${s.result||""}</div>`;
+      div.innerHTML=`<div class="item-time">${k.replace("muki_summary_","")}</div><div><strong>${s.currentNext||""}</strong></div><div class="muted">一歩記録 ${(s.steps||[]).length} 件</div>`;
       box.appendChild(div);
     }catch(e){}
   });
