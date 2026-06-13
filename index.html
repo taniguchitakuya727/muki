@@ -1,186 +1,303 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>向き 最小動作版</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>向き｜Daily Inbox</title>
   <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f7f3ec;color:#241f1a;margin:0;padding:20px;line-height:1.7}
-    .wrap{max-width:720px;margin:0 auto}
-    h1{font-size:28px;margin:0 0 10px}
-    .card{background:#fff;border:1px solid #e4ddd2;border-radius:18px;padding:18px;margin:16px 0;box-shadow:0 4px 18px rgba(0,0,0,.04)}
-    textarea{width:100%;box-sizing:border-box;min-height:170px;border:1px solid #d8cfc3;border-radius:14px;padding:14px;font-size:16px;line-height:1.7;background:#fffdf9;color:#241f1a}
-    button{border:0;border-radius:999px;padding:12px 18px;margin:8px 6px 0 0;font-size:15px;font-weight:700;background:#2f6f5e;color:#fff;cursor:pointer}
-    button.secondary{background:#8b7a68}
-    button.light{background:#e9dfd2;color:#241f1a}
-    .section{border-top:1px solid #eee3d8;padding-top:12px;margin-top:12px}
-    .label{font-weight:800;margin-bottom:4px;color:#5b4939}
-    .big{font-size:22px;font-weight:900}
-    ul{margin:6px 0 0 20px;padding:0}
-    .muted{color:#7a6a5b;font-size:14px}
-    .status{font-weight:700;color:#2f6f5e;margin-top:10px}
-    pre{white-space:pre-wrap;background:#fff8ef;border:1px solid #eadfce;border-radius:14px;padding:12px;font-size:13px}
+    :root {
+      --bg:#f7f4ee; --card:#fffdf8; --ink:#24221f; --muted:#746d62;
+      --line:#ddd4c4; --accent:#68795c; --accent2:#eef1e8; --danger:#9a5b51;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;background:var(--bg);color:var(--ink);line-height:1.65}
+    .wrap{max-width:760px;margin:0 auto;padding:24px 16px 80px}
+    h1{margin:0;font-size:28px;letter-spacing:.08em}
+    h2{font-size:18px;margin:0 0 12px}
+    h3{font-size:15px;margin:16px 0 8px}
+    .lead,.muted{color:var(--muted);font-size:14px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 0;box-shadow:0 8px 22px rgba(0,0,0,.035)}
+    textarea,input{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px;font-size:16px;background:white;color:var(--ink)}
+    textarea{min-height:92px;resize:vertical}
+    button{border:0;border-radius:999px;padding:11px 16px;margin:8px 6px 0 0;background:var(--accent);color:white;font-weight:700;font-size:14px;cursor:pointer}
+    button.secondary{background:#e7dfd1;color:var(--ink)}
+    button.danger{background:var(--danger)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .pill{display:inline-block;background:var(--accent2);border:1px solid #d8dfd0;border-radius:999px;padding:4px 9px;margin:3px;font-size:13px}
+    .item{border-top:1px solid var(--line);padding:12px 0}
+    .item:first-child{border-top:0}
+    .item-time{font-size:12px;color:var(--muted)}
+    .item-text{white-space:pre-wrap;margin:5px 0 8px}
+    .grid{display:grid;grid-template-columns:1fr;gap:10px}
+    @media(min-width:680px){.grid{grid-template-columns:1fr 1fr}}
+    ul{margin:8px 0 0;padding-left:20px}
+    .big{font-size:22px;font-weight:800;background:var(--accent2);padding:14px;border-radius:14px}
+    .hidden{display:none}
+    .status{font-weight:700;color:var(--accent);margin-top:8px}
+    details summary{cursor:pointer;font-weight:700}
+    .count{font-weight:800}
   </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>向き</h1>
-  <div class="muted">頭の中を出して、今日の一歩を決める最小動作版</div>
+<main class="wrap">
+  <header>
+    <h1>向き</h1>
+    <p class="lead">思いついた時に入れる。1日の終わりに整理する。</p>
+  </header>
 
-  <div class="card">
-    <div class="label">今、頭の中にあること</div>
-    <textarea id="input" placeholder="例：AI副業、洗濯、部屋片付け、胸が重い、焦る"></textarea>
-    <div>
-      <button id="sampleBtn" type="button">サンプル入力</button>
-      <button id="organizeBtn" type="button">整理して一歩を出す</button>
-      <button id="clearBtn" type="button" class="light">消す</button>
-    </div>
-    <div id="message" class="status"></div>
-  </div>
+  <section class="card">
+    <h2>今、追加する</h2>
+    <textarea id="quickInput" placeholder="例：洗濯／副業が気になる／胸が重い／投信を確認したい"></textarea>
+    <button id="addBtn">追加する</button>
+    <button id="sampleBtn" class="secondary">サンプル追加</button>
+    <p class="muted">分類しなくてOK。短くても、ぐちゃっとしていてもOK。</p>
+  </section>
 
-  <div id="result" class="card" style="display:none">
-    <div class="section" style="border-top:0;margin-top:0;padding-top:0">
-      <div class="label">次の一歩</div>
-      <div id="step" class="big"></div>
+  <section class="card">
+    <h2>今日のInbox</h2>
+    <p><span class="count" id="count">0</span> 件たまっています。</p>
+    <div id="inboxList"></div>
+    <button id="organizeBtn">今日をまとめる</button>
+    <button id="clearBtn" class="secondary">今日のInboxを消す</button>
+  </section>
+
+  <section id="summaryCard" class="card hidden">
+    <h2>今日のまとめ</h2>
+
+    <h3>次の一歩</h3>
+    <div id="nextStep" class="big"></div>
+    <p id="reason" class="muted"></p>
+
+    <div class="grid">
+      <div>
+        <h3>やるべきこと</h3>
+        <ul id="mustList"></ul>
+      </div>
+      <div>
+        <h3>やりたいこと</h3>
+        <ul id="wantList"></ul>
+      </div>
+      <div>
+        <h3>気になっていること</h3>
+        <ul id="concernList"></ul>
+      </div>
+      <div>
+        <h3>状態</h3>
+        <ul id="stateList"></ul>
+      </div>
     </div>
-    <div class="section">
-      <div class="label">今日の焦点</div>
-      <div id="focus"></div>
+
+    <h3>残してあるもの</h3>
+    <ul id="keptList"></ul>
+
+    <div class="row">
+      <button id="doneBtn">一歩やった</button>
+      <button id="notDoneBtn" class="secondary">できなかった</button>
+      <button id="copyBtn" class="secondary">Obsidian用にコピー</button>
     </div>
-    <div class="section">
-      <div class="label">理由</div>
-      <div id="reason"></div>
-    </div>
-    <div class="section">
-      <div class="label">やるべきこと</div>
-      <ul id="todo"></ul>
-    </div>
-    <div class="section">
-      <div class="label">やりたいこと</div>
-      <ul id="want"></ul>
-    </div>
-    <div class="section">
-      <div class="label">気になっていること</div>
-      <ul id="worry"></ul>
-    </div>
-    <div class="section">
-      <div class="label">状態</div>
-      <ul id="state"></ul>
-    </div>
-    <div class="section">
-      <div class="label">残してあるもの</div>
-      <ul id="kept"></ul>
-    </div>
-    <div class="section">
-      <button id="doneBtn" type="button">一歩やった</button>
-      <button id="notDoneBtn" type="button" class="secondary">できなかった</button>
-      <button id="copyBtn" type="button" class="light">Obsidian用コピー</button>
-      <div id="afterMessage" class="status"></div>
-    </div>
-    <div class="section">
-      <div class="label">Obsidian用</div>
-      <pre id="markdown"></pre>
-    </div>
-  </div>
-</div>
+    <div id="status" class="status"></div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>昨日以前の保存データ</summary>
+      <div id="archive"></div>
+    </details>
+  </section>
+</main>
 
 <script>
-(function(){
-  const input = document.getElementById('input');
-  const message = document.getElementById('message');
-  const result = document.getElementById('result');
-  const sampleText = 'AI副業が気になる\n洗濯しなきゃ\n部屋片付けたい\n投信減額も気になる\n胸が重い\n焦る\n仕事もある';
-  let lastData = null;
+const todayKey = () => "muki_inbox_" + new Date().toISOString().slice(0,10);
+const summaryKey = () => "muki_summary_" + new Date().toISOString().slice(0,10);
+let currentSummary = null;
 
-  function splitItems(text){
-    return text.split(/\n|、|,|。/).map(s=>s.trim()).filter(Boolean);
-  }
-  function includesAny(s, words){ return words.some(w => s.includes(w)); }
-  function uniq(arr){ return Array.from(new Set(arr)); }
-  function li(id, arr){
-    const el = document.getElementById(id); el.innerHTML = '';
-    if(!arr.length){ const node=document.createElement('li'); node.textContent='なし'; el.appendChild(node); return; }
-    arr.forEach(x=>{ const node=document.createElement('li'); node.textContent=x; el.appendChild(node); });
-  }
-  function chooseFocus(todo, want, worry, state){
-    const priorityWords = ['洗濯','ゴミ','支払い','振込','予約','投信','仕事','片付け','部屋'];
-    const candidates = [...todo, ...worry, ...want];
-    for(const w of priorityWords){
-      const hit = candidates.find(x=>x.includes(w));
-      if(hit) return hit;
-    }
-    if(state.some(x=>includesAny(x,['眠い','疲れ','しんどい','重い']))) return '休む／整える';
-    return candidates[0] || '今あることを1つだけ見る';
-  }
-  function stepFor(focus){
-    if(focus.includes('洗濯')) return '洗濯物を集める';
-    if(focus.includes('部屋') || focus.includes('片付け')) return '床か机の上を1か所だけ空ける';
-    if(focus.includes('投信')) return '証券サイトを開く';
-    if(focus.includes('AI') || focus.includes('副業')) return '教材ページを開く';
-    if(focus.includes('仕事')) return '仕事で最初に扱うものを1つ書く';
-    if(focus.includes('休')) return '水を飲んで1分座る';
-    return focus + 'を5分だけ触る';
-  }
-  function reasonFor(focus){
-    if(focus.includes('洗濯') || focus.includes('部屋') || focus.includes('片付け')) return '生活の負荷を下げるため';
-    if(focus.includes('投信') || focus.includes('支払い') || focus.includes('振込')) return '放置コストが高いため';
-    if(focus.includes('AI') || focus.includes('副業')) return '継続テーマを少しだけ前に進めるため';
-    if(focus.includes('休')) return '状態を整えるため';
-    return '今扱いやすい一歩にするため';
-  }
-  function organize(){
-    const items = splitItems(input.value);
-    if(!items.length){ message.textContent='まず何か書いてください。'; return; }
-    const state = uniq(items.filter(s=>includesAny(s,['胸','喉','頭','肩','腹','重い','痛','焦','不安','眠','疲','だる','怖','苦','モヤ'])));
-    const todo = uniq(items.filter(s=>includesAny(s,['しなきゃ','やる','仕事','洗濯','掃除','片付け','部屋','投信','支払い','振込','予約','確認','連絡'])));
-    const want = uniq(items.filter(s=>includesAny(s,['したい','やりたい','作りたい','読みたい','AI副業','副業','アプリ','イネイト','自覚'])));
-    const worry = uniq(items.filter(s=>includesAny(s,['気になる','不安','焦','どうしよう','進ま','お金','投信','副業','部屋'])));
-    const classified = new Set([...todo,...want,...worry,...state]);
-    const kept = uniq(items.filter(s=>!classified.has(s)).concat(items.filter(s=>s!==chooseFocus(todo,want,worry,state) && !state.includes(s))).filter(Boolean));
-    const focus = chooseFocus(todo, want, worry, state);
-    const step = stepFor(focus);
-    const reason = reasonFor(focus);
-    lastData = {items,todo,want,worry,state,kept,focus,step,reason,status:''};
-    document.getElementById('step').textContent = step;
-    document.getElementById('focus').textContent = focus;
-    document.getElementById('reason').textContent = reason;
-    li('todo', todo); li('want', want); li('worry', worry); li('state', state); li('kept', kept);
-    updateMarkdown();
-    result.style.display='block';
-    message.textContent = items.length + '項目を整理しました。漏れないよう残してあります。';
-  }
-  function updateMarkdown(){
-    if(!lastData) return;
-    const d = new Date();
-    const lines = [];
-    lines.push('## 向きログ ' + d.toLocaleString('ja-JP'));
-    lines.push('');
-    lines.push('### 入力');
-    lastData.items.forEach(x=>lines.push('- ' + x));
-    lines.push('');
-    lines.push('### 次の一歩'); lines.push('- ' + lastData.step);
-    lines.push('');
-    lines.push('### 今日の焦点'); lines.push('- ' + lastData.focus);
-    lines.push('');
-    lines.push('### 理由'); lines.push('- ' + lastData.reason);
-    lines.push('');
-    lines.push('### 状態'); (lastData.state.length?lastData.state:['なし']).forEach(x=>lines.push('- '+x));
-    lines.push('');
-    lines.push('### 結果'); lines.push('- ' + (lastData.status || '未記録'));
-    document.getElementById('markdown').textContent = lines.join('\n');
-  }
+const $ = id => document.getElementById(id);
 
-  document.getElementById('sampleBtn').onclick = function(){ input.value = sampleText; message.textContent='サンプルを入れました。'; };
-  document.getElementById('organizeBtn').onclick = organize;
-  document.getElementById('clearBtn').onclick = function(){ input.value=''; result.style.display='none'; message.textContent='消しました。'; };
-  document.getElementById('doneBtn').onclick = function(){ if(lastData){ lastData.status='一歩やった'; updateMarkdown(); document.getElementById('afterMessage').textContent='記録しました：一歩やった'; }};
-  document.getElementById('notDoneBtn').onclick = function(){ if(lastData){ lastData.status='できなかった'; updateMarkdown(); document.getElementById('afterMessage').textContent='記録しました：できなかった'; }};
-  document.getElementById('copyBtn').onclick = async function(){
-    const text = document.getElementById('markdown').textContent;
-    try{ await navigator.clipboard.writeText(text); document.getElementById('afterMessage').textContent='コピーしました。'; }
-    catch(e){ document.getElementById('afterMessage').textContent='コピーできない場合は下の文を手動コピーしてください。'; }
+function nowText(){
+  return new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"});
+}
+function getInbox(){
+  try{return JSON.parse(localStorage.getItem(todayKey())||"[]")}catch(e){return[]}
+}
+function saveInbox(items){
+  localStorage.setItem(todayKey(), JSON.stringify(items));
+}
+function addItem(text){
+  const t = text.trim();
+  if(!t){ alert("追加する内容を書いてください。"); return; }
+  const items = getInbox();
+  items.push({id:Date.now(), time:nowText(), text:t});
+  saveInbox(items);
+  $("quickInput").value = "";
+  renderInbox();
+}
+function deleteItem(id){
+  saveInbox(getInbox().filter(x=>x.id!==id));
+  renderInbox();
+}
+function renderInbox(){
+  const items = getInbox();
+  $("count").textContent = items.length;
+  const box = $("inboxList");
+  box.innerHTML = "";
+  if(!items.length){
+    box.innerHTML = '<p class="muted">まだ何も入っていません。</p>';
+    return;
+  }
+  items.forEach(item=>{
+    const div=document.createElement("div");
+    div.className="item";
+    div.innerHTML = '<div class="item-time">'+item.time+'</div><div class="item-text"></div>';
+    div.querySelector(".item-text").textContent = item.text;
+    const btn=document.createElement("button");
+    btn.className="secondary";
+    btn.textContent="削除";
+    btn.onclick=()=>deleteItem(item.id);
+    div.appendChild(btn);
+    box.appendChild(div);
+  });
+}
+function splitText(text){
+  return text.split(/\n|、|,|。/).map(s=>s.trim()).filter(Boolean);
+}
+function includesAny(text, words){return words.some(w=>text.includes(w))}
+function unique(a){return [...new Set(a)]}
+function li(id, arr){
+  const el=$(id); el.innerHTML="";
+  if(!arr.length){ const x=document.createElement("li"); x.textContent="なし"; el.appendChild(x); return; }
+  arr.forEach(v=>{const x=document.createElement("li"); x.textContent=v; el.appendChild(x)})
+}
+function chooseFocus(all, must, states){
+  const quick=["洗濯","ゴミ","掃除","片付け","返信","仕事","支払い","振込","予約","投信"];
+  const q=all.find(x=>includesAny(x,quick));
+  if(q) return q;
+  if(must.length) return must[0];
+  if(states.length && all.length===states.length) return "休む";
+  return all[0] || "水を飲む";
+}
+function makeStep(focus){
+  if(focus.includes("洗濯")) return "洗濯物を集める";
+  if(focus.includes("片付け")||focus.includes("部屋")) return "床のものを1つだけ拾う";
+  if(focus.includes("副業")) return "教材ページを開く";
+  if(focus.includes("投信")) return "証券サイトを開く";
+  if(focus.includes("仕事")) return "最初の作業を1つ書く";
+  if(focus.includes("休")) return "1分だけ目を閉じる";
+  return focus + "を5分だけ触る";
+}
+function organize(){
+  const inbox=getInbox();
+  if(!inbox.length){ alert("まずInboxに追加してください。"); return; }
+  const all=[];
+  inbox.forEach(x=>splitText(x.text).forEach(y=>all.push(y)));
+
+  const stateWords=["胸","喉","頭","肩","腹","重い","痛い","焦","不安","眠","疲","怖","モヤ","しんど"];
+  const mustWords=["洗濯","仕事","投信","支払い","振込","予約","片付け","ゴミ","掃除","手続き"];
+  const wantWords=["やりたい","作りたい","読みたい","副業","イネイト","自覚","アプリ","読書","学び"];
+  const concernWords=["気になる","不安","焦","進ま","どうしよう","お金","部屋","副業","投信"];
+
+  const must=unique(all.filter(x=>includesAny(x,mustWords)));
+  const want=unique(all.filter(x=>includesAny(x,wantWords)));
+  const concern=unique(all.filter(x=>includesAny(x,concernWords)));
+  const states=unique(all.filter(x=>includesAny(x,stateWords)));
+
+  const focus=chooseFocus(all,must,states);
+  const next=makeStep(focus);
+  const kept=all.filter(x=>x!==focus);
+
+  currentSummary={
+    date:new Date().toLocaleString("ja-JP"),
+    inbox, all, must, want, concern, states, focus, next, kept, result:"未記録"
   };
-})();
+  localStorage.setItem(summaryKey(), JSON.stringify(currentSummary));
+  renderSummary(currentSummary);
+}
+function renderSummary(s){
+  $("summaryCard").classList.remove("hidden");
+  $("nextStep").textContent=s.next;
+  $("reason").textContent="入力された " + s.all.length + " 件を、漏れなく残しながら一歩に絞りました。";
+  li("mustList",s.must); li("wantList",s.want); li("concernList",s.concern); li("stateList",s.states); li("keptList",s.kept);
+  $("status").textContent="";
+}
+function markdown(){
+  const s=currentSummary;
+  if(!s) return "";
+  return `## 向き Daily ${s.date}
+
+### 今日たまったもの
+${s.inbox.map(x=>`- ${x.time} ${x.text}`).join("\n")}
+
+### 次の一歩
+${s.next}
+
+### 今日の焦点
+${s.focus}
+
+### やるべきこと
+${s.must.map(x=>"- "+x).join("\n") || "- なし"}
+
+### やりたいこと
+${s.want.map(x=>"- "+x).join("\n") || "- なし"}
+
+### 気になっていること
+${s.concern.map(x=>"- "+x).join("\n") || "- なし"}
+
+### 状態
+${s.states.map(x=>"- "+x).join("\n") || "- なし"}
+
+### 残してあるもの
+${s.kept.map(x=>"- "+x).join("\n") || "- なし"}
+
+### 一歩の記録
+${s.result}
+`;
+}
+$("addBtn").onclick=()=>addItem($("quickInput").value);
+$("sampleBtn").onclick=()=>{
+  ["AI副業が気になる","洗濯","部屋片付け","投信減額","胸が重い","焦る"].forEach(addItem);
+};
+$("organizeBtn").onclick=organize;
+$("clearBtn").onclick=()=>{
+  if(confirm("今日のInboxを消しますか？")){
+    localStorage.removeItem(todayKey()); renderInbox(); $("summaryCard").classList.add("hidden");
+  }
+};
+$("doneBtn").onclick=()=>{
+  if(!currentSummary)return;
+  currentSummary.result="一歩やった";
+  localStorage.setItem(summaryKey(),JSON.stringify(currentSummary));
+  $("status").textContent="記録しました：一歩やった";
+};
+$("notDoneBtn").onclick=()=>{
+  if(!currentSummary)return;
+  currentSummary.result="できなかった";
+  localStorage.setItem(summaryKey(),JSON.stringify(currentSummary));
+  $("status").textContent="記録しました：できなかった";
+};
+$("copyBtn").onclick=async()=>{
+  const md=markdown();
+  try{ await navigator.clipboard.writeText(md); $("status").textContent="Obsidian用Markdownをコピーしました"; }
+  catch(e){ alert(md); }
+};
+function renderArchive(){
+  const box=$("archive"); box.innerHTML="";
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith("muki_summary_")).sort().reverse();
+  if(!keys.length){ box.innerHTML='<p class="muted">保存データはまだありません。</p>'; return; }
+  keys.forEach(k=>{
+    try{
+      const s=JSON.parse(localStorage.getItem(k));
+      const div=document.createElement("div");
+      div.className="item";
+      div.innerHTML=`<div class="item-time">${k.replace("muki_summary_","")}</div><div><strong>${s.next||""}</strong></div><div class="muted">${s.result||""}</div>`;
+      box.appendChild(div);
+    }catch(e){}
+  });
+}
+window.addEventListener("load",()=>{
+  renderInbox();
+  const saved=localStorage.getItem(summaryKey());
+  if(saved){ try{currentSummary=JSON.parse(saved); renderSummary(currentSummary)}catch(e){} }
+  renderArchive();
+});
 </script>
 </body>
 </html>
