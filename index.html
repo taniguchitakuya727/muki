@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>向き 最小動作版</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f7f3ec;color:#241f1a;margin:0;padding:20px;line-height:1.7}
+    .wrap{max-width:720px;margin:0 auto}
+    h1{font-size:28px;margin:0 0 10px}
+    .card{background:#fff;border:1px solid #e4ddd2;border-radius:18px;padding:18px;margin:16px 0;box-shadow:0 4px 18px rgba(0,0,0,.04)}
+    textarea{width:100%;box-sizing:border-box;min-height:170px;border:1px solid #d8cfc3;border-radius:14px;padding:14px;font-size:16px;line-height:1.7;background:#fffdf9;color:#241f1a}
+    button{border:0;border-radius:999px;padding:12px 18px;margin:8px 6px 0 0;font-size:15px;font-weight:700;background:#2f6f5e;color:#fff;cursor:pointer}
+    button.secondary{background:#8b7a68}
+    button.light{background:#e9dfd2;color:#241f1a}
+    .section{border-top:1px solid #eee3d8;padding-top:12px;margin-top:12px}
+    .label{font-weight:800;margin-bottom:4px;color:#5b4939}
+    .big{font-size:22px;font-weight:900}
+    ul{margin:6px 0 0 20px;padding:0}
+    .muted{color:#7a6a5b;font-size:14px}
+    .status{font-weight:700;color:#2f6f5e;margin-top:10px}
+    pre{white-space:pre-wrap;background:#fff8ef;border:1px solid #eadfce;border-radius:14px;padding:12px;font-size:13px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>向き</h1>
+  <div class="muted">頭の中を出して、今日の一歩を決める最小動作版</div>
+
+  <div class="card">
+    <div class="label">今、頭の中にあること</div>
+    <textarea id="input" placeholder="例：AI副業、洗濯、部屋片付け、胸が重い、焦る"></textarea>
+    <div>
+      <button id="sampleBtn" type="button">サンプル入力</button>
+      <button id="organizeBtn" type="button">整理して一歩を出す</button>
+      <button id="clearBtn" type="button" class="light">消す</button>
+    </div>
+    <div id="message" class="status"></div>
+  </div>
+
+  <div id="result" class="card" style="display:none">
+    <div class="section" style="border-top:0;margin-top:0;padding-top:0">
+      <div class="label">次の一歩</div>
+      <div id="step" class="big"></div>
+    </div>
+    <div class="section">
+      <div class="label">今日の焦点</div>
+      <div id="focus"></div>
+    </div>
+    <div class="section">
+      <div class="label">理由</div>
+      <div id="reason"></div>
+    </div>
+    <div class="section">
+      <div class="label">やるべきこと</div>
+      <ul id="todo"></ul>
+    </div>
+    <div class="section">
+      <div class="label">やりたいこと</div>
+      <ul id="want"></ul>
+    </div>
+    <div class="section">
+      <div class="label">気になっていること</div>
+      <ul id="worry"></ul>
+    </div>
+    <div class="section">
+      <div class="label">状態</div>
+      <ul id="state"></ul>
+    </div>
+    <div class="section">
+      <div class="label">残してあるもの</div>
+      <ul id="kept"></ul>
+    </div>
+    <div class="section">
+      <button id="doneBtn" type="button">一歩やった</button>
+      <button id="notDoneBtn" type="button" class="secondary">できなかった</button>
+      <button id="copyBtn" type="button" class="light">Obsidian用コピー</button>
+      <div id="afterMessage" class="status"></div>
+    </div>
+    <div class="section">
+      <div class="label">Obsidian用</div>
+      <pre id="markdown"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const input = document.getElementById('input');
+  const message = document.getElementById('message');
+  const result = document.getElementById('result');
+  const sampleText = 'AI副業が気になる\n洗濯しなきゃ\n部屋片付けたい\n投信減額も気になる\n胸が重い\n焦る\n仕事もある';
+  let lastData = null;
+
+  function splitItems(text){
+    return text.split(/\n|、|,|。/).map(s=>s.trim()).filter(Boolean);
+  }
+  function includesAny(s, words){ return words.some(w => s.includes(w)); }
+  function uniq(arr){ return Array.from(new Set(arr)); }
+  function li(id, arr){
+    const el = document.getElementById(id); el.innerHTML = '';
+    if(!arr.length){ const node=document.createElement('li'); node.textContent='なし'; el.appendChild(node); return; }
+    arr.forEach(x=>{ const node=document.createElement('li'); node.textContent=x; el.appendChild(node); });
+  }
+  function chooseFocus(todo, want, worry, state){
+    const priorityWords = ['洗濯','ゴミ','支払い','振込','予約','投信','仕事','片付け','部屋'];
+    const candidates = [...todo, ...worry, ...want];
+    for(const w of priorityWords){
+      const hit = candidates.find(x=>x.includes(w));
+      if(hit) return hit;
+    }
+    if(state.some(x=>includesAny(x,['眠い','疲れ','しんどい','重い']))) return '休む／整える';
+    return candidates[0] || '今あることを1つだけ見る';
+  }
+  function stepFor(focus){
+    if(focus.includes('洗濯')) return '洗濯物を集める';
+    if(focus.includes('部屋') || focus.includes('片付け')) return '床か机の上を1か所だけ空ける';
+    if(focus.includes('投信')) return '証券サイトを開く';
+    if(focus.includes('AI') || focus.includes('副業')) return '教材ページを開く';
+    if(focus.includes('仕事')) return '仕事で最初に扱うものを1つ書く';
+    if(focus.includes('休')) return '水を飲んで1分座る';
+    return focus + 'を5分だけ触る';
+  }
+  function reasonFor(focus){
+    if(focus.includes('洗濯') || focus.includes('部屋') || focus.includes('片付け')) return '生活の負荷を下げるため';
+    if(focus.includes('投信') || focus.includes('支払い') || focus.includes('振込')) return '放置コストが高いため';
+    if(focus.includes('AI') || focus.includes('副業')) return '継続テーマを少しだけ前に進めるため';
+    if(focus.includes('休')) return '状態を整えるため';
+    return '今扱いやすい一歩にするため';
+  }
+  function organize(){
+    const items = splitItems(input.value);
+    if(!items.length){ message.textContent='まず何か書いてください。'; return; }
+    const state = uniq(items.filter(s=>includesAny(s,['胸','喉','頭','肩','腹','重い','痛','焦','不安','眠','疲','だる','怖','苦','モヤ'])));
+    const todo = uniq(items.filter(s=>includesAny(s,['しなきゃ','やる','仕事','洗濯','掃除','片付け','部屋','投信','支払い','振込','予約','確認','連絡'])));
+    const want = uniq(items.filter(s=>includesAny(s,['したい','やりたい','作りたい','読みたい','AI副業','副業','アプリ','イネイト','自覚'])));
+    const worry = uniq(items.filter(s=>includesAny(s,['気になる','不安','焦','どうしよう','進ま','お金','投信','副業','部屋'])));
+    const classified = new Set([...todo,...want,...worry,...state]);
+    const kept = uniq(items.filter(s=>!classified.has(s)).concat(items.filter(s=>s!==chooseFocus(todo,want,worry,state) && !state.includes(s))).filter(Boolean));
+    const focus = chooseFocus(todo, want, worry, state);
+    const step = stepFor(focus);
+    const reason = reasonFor(focus);
+    lastData = {items,todo,want,worry,state,kept,focus,step,reason,status:''};
+    document.getElementById('step').textContent = step;
+    document.getElementById('focus').textContent = focus;
+    document.getElementById('reason').textContent = reason;
+    li('todo', todo); li('want', want); li('worry', worry); li('state', state); li('kept', kept);
+    updateMarkdown();
+    result.style.display='block';
+    message.textContent = items.length + '項目を整理しました。漏れないよう残してあります。';
+  }
+  function updateMarkdown(){
+    if(!lastData) return;
+    const d = new Date();
+    const lines = [];
+    lines.push('## 向きログ ' + d.toLocaleString('ja-JP'));
+    lines.push('');
+    lines.push('### 入力');
+    lastData.items.forEach(x=>lines.push('- ' + x));
+    lines.push('');
+    lines.push('### 次の一歩'); lines.push('- ' + lastData.step);
+    lines.push('');
+    lines.push('### 今日の焦点'); lines.push('- ' + lastData.focus);
+    lines.push('');
+    lines.push('### 理由'); lines.push('- ' + lastData.reason);
+    lines.push('');
+    lines.push('### 状態'); (lastData.state.length?lastData.state:['なし']).forEach(x=>lines.push('- '+x));
+    lines.push('');
+    lines.push('### 結果'); lines.push('- ' + (lastData.status || '未記録'));
+    document.getElementById('markdown').textContent = lines.join('\n');
+  }
+
+  document.getElementById('sampleBtn').onclick = function(){ input.value = sampleText; message.textContent='サンプルを入れました。'; };
+  document.getElementById('organizeBtn').onclick = organize;
+  document.getElementById('clearBtn').onclick = function(){ input.value=''; result.style.display='none'; message.textContent='消しました。'; };
+  document.getElementById('doneBtn').onclick = function(){ if(lastData){ lastData.status='一歩やった'; updateMarkdown(); document.getElementById('afterMessage').textContent='記録しました：一歩やった'; }};
+  document.getElementById('notDoneBtn').onclick = function(){ if(lastData){ lastData.status='できなかった'; updateMarkdown(); document.getElementById('afterMessage').textContent='記録しました：できなかった'; }};
+  document.getElementById('copyBtn').onclick = async function(){
+    const text = document.getElementById('markdown').textContent;
+    try{ await navigator.clipboard.writeText(text); document.getElementById('afterMessage').textContent='コピーしました。'; }
+    catch(e){ document.getElementById('afterMessage').textContent='コピーできない場合は下の文を手動コピーしてください。'; }
+  };
+})();
+</script>
+</body>
+</html>
